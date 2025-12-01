@@ -22,7 +22,7 @@ import {
 const server = new Server(
   {
     name: "bacon-mcp",
-    version: "0.1.0",
+    version: "0.2.0",
   },
   {
     capabilities: {
@@ -61,7 +61,7 @@ const tools: Tool[] = [
   {
     name: "bacon_clippy",
     description:
-      "Run `cargo clippy` on a Rust project for comprehensive linting. Returns warnings about common mistakes, style issues, and potential bugs with suggested fixes.",
+      "Run `cargo clippy` on a Rust project for comprehensive linting. Returns warnings about common mistakes, style issues, and potential bugs with suggested fixes. Supports multiple lint levels for high-quality Rust code.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -78,7 +78,71 @@ const tools: Tool[] = [
         pedantic: {
           type: "boolean",
           description:
-            "Enable pedantic lints for stricter checking. Default: false",
+            "Enable pedantic lints - extra strict checks for code quality. Warns on missing docs, unwrap usage, etc. Default: false",
+        },
+        nursery: {
+          type: "boolean",
+          description:
+            "Enable nursery lints - experimental lints that may have false positives but catch edge cases. Default: false",
+        },
+        cargo: {
+          type: "boolean",
+          description:
+            "Enable cargo lints - checks for Cargo.toml issues like missing metadata, wildcard dependencies. Default: false",
+        },
+        restriction: {
+          type: "boolean",
+          description:
+            "Enable restriction lints - very strict lints (panic, unwrap, expect, indexing). Usually too strict for most code. Default: false",
+        },
+        deny_warnings: {
+          type: "boolean",
+          description:
+            "Treat all warnings as errors (deny instead of warn). Useful for CI. Default: false",
+        },
+        fix: {
+          type: "boolean",
+          description:
+            "Automatically apply suggested fixes where possible. Default: false",
+        },
+        allow: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "List of specific lints to allow (ignore). E.g., ['clippy::too_many_arguments']",
+        },
+        warn: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "List of specific lints to warn on. E.g., ['clippy::unwrap_used']",
+        },
+        deny: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "List of specific lints to deny (treat as errors). E.g., ['clippy::panic']",
+        },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "bacon_clippy_strict",
+    description:
+      "Run clippy with strict settings for maximum code quality. Enables pedantic + nursery + cargo lints and denies warnings. Ideal for ensuring production-quality Rust code.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        path: {
+          type: "string",
+          description:
+            "Absolute path to the Rust project directory (containing Cargo.toml)",
+        },
+        all_targets: {
+          type: "boolean",
+          description:
+            "Check all targets (lib, bins, tests, examples). Default: true",
         },
         fix: {
           type: "boolean",
@@ -156,6 +220,11 @@ const tools: Tool[] = [
           description:
             "Don't build documentation for dependencies. Default: true",
         },
+        document_private: {
+          type: "boolean",
+          description:
+            "Document private items as well. Default: false",
+        },
         open: {
           type: "boolean",
           description: "Open documentation in browser after building. Default: false",
@@ -200,6 +269,107 @@ const tools: Tool[] = [
     name: "bacon_audit",
     description:
       "Run `cargo audit` to check for known security vulnerabilities in dependencies. Requires cargo-audit to be installed.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        path: {
+          type: "string",
+          description:
+            "Absolute path to the Rust project directory (containing Cargo.toml)",
+        },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "bacon_deny",
+    description:
+      "Run `cargo deny` to check dependencies for licenses, security advisories, and duplicate versions. Requires cargo-deny to be installed. More comprehensive than cargo audit.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        path: {
+          type: "string",
+          description:
+            "Absolute path to the Rust project directory (containing Cargo.toml)",
+        },
+        check: {
+          type: "string",
+          enum: ["all", "advisories", "bans", "licenses", "sources"],
+          description:
+            "Which checks to run: 'all' (default), 'advisories' (security), 'bans' (denied crates/duplicates), 'licenses', or 'sources' (allowed registries)",
+        },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "bacon_outdated",
+    description:
+      "Run `cargo outdated` to check for outdated dependencies. Shows which dependencies have newer versions available. Requires cargo-outdated to be installed.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        path: {
+          type: "string",
+          description:
+            "Absolute path to the Rust project directory (containing Cargo.toml)",
+        },
+        depth: {
+          type: "number",
+          description:
+            "How deep in the dependency tree to check. Default: 1 (direct deps only)",
+        },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "bacon_udeps",
+    description:
+      "Run `cargo udeps` to find unused dependencies in your Cargo.toml. Requires cargo-udeps and nightly Rust. Helps keep your dependency list clean.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        path: {
+          type: "string",
+          description:
+            "Absolute path to the Rust project directory (containing Cargo.toml)",
+        },
+        all_targets: {
+          type: "boolean",
+          description:
+            "Check all targets for unused dependencies. Default: true",
+        },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "bacon_machete",
+    description:
+      "Run `cargo machete` to find unused dependencies. Faster than cargo-udeps and doesn't require nightly. Requires cargo-machete to be installed.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        path: {
+          type: "string",
+          description:
+            "Absolute path to the Rust project directory (containing Cargo.toml)",
+        },
+        fix: {
+          type: "boolean",
+          description:
+            "Automatically remove unused dependencies from Cargo.toml. Default: false",
+        },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "bacon_quality",
+    description:
+      "Run a comprehensive code quality check: clippy (pedantic + nursery), fmt check, and doc check. Returns a combined report of all issues found.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -285,27 +455,116 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case "bacon_clippy": {
-      const { all_targets = true, pedantic, fix } = args as {
+      const {
+        all_targets = true,
+        pedantic,
+        nursery,
+        cargo,
+        restriction,
+        deny_warnings,
+        fix,
+        allow,
+        warn,
+        deny,
+      } = args as {
         all_targets?: boolean;
         pedantic?: boolean;
+        nursery?: boolean;
+        cargo?: boolean;
+        restriction?: boolean;
+        deny_warnings?: boolean;
+        fix?: boolean;
+        allow?: string[];
+        warn?: string[];
+        deny?: string[];
+      };
+
+      const cargoArgs = ["clippy", "--message-format=json"];
+      if (all_targets) cargoArgs.push("--all-targets");
+      if (fix) cargoArgs.push("--fix", "--allow-dirty", "--allow-staged");
+
+      // Build lint flags
+      const lintFlags: string[] = [];
+
+      if (pedantic) lintFlags.push("-W", "clippy::pedantic");
+      if (nursery) lintFlags.push("-W", "clippy::nursery");
+      if (cargo) lintFlags.push("-W", "clippy::cargo");
+      if (restriction) lintFlags.push("-W", "clippy::restriction");
+      if (deny_warnings) lintFlags.push("-D", "warnings");
+
+      // Custom lint configurations
+      if (allow && allow.length > 0) {
+        for (const lint of allow) {
+          lintFlags.push("-A", lint);
+        }
+      }
+      if (warn && warn.length > 0) {
+        for (const lint of warn) {
+          lintFlags.push("-W", lint);
+        }
+      }
+      if (deny && deny.length > 0) {
+        for (const lint of deny) {
+          lintFlags.push("-D", lint);
+        }
+      }
+
+      if (lintFlags.length > 0) {
+        cargoArgs.push("--", ...lintFlags);
+      }
+
+      const result = await runCargoCommand(cargoArgs, path);
+      const diagnostics = parseCargoDiagnostics(result.stdout);
+
+      let output = "";
+      const enabledLints: string[] = [];
+      if (pedantic) enabledLints.push("pedantic");
+      if (nursery) enabledLints.push("nursery");
+      if (cargo) enabledLints.push("cargo");
+      if (restriction) enabledLints.push("restriction");
+
+      if (enabledLints.length > 0) {
+        output += `🔍 Clippy with: ${enabledLints.join(", ")}\n\n`;
+      }
+
+      output += formatDiagnostics(diagnostics);
+
+      return {
+        content: [{ type: "text", text: output }],
+      };
+    }
+
+    case "bacon_clippy_strict": {
+      const { all_targets = true, fix } = args as {
+        all_targets?: boolean;
         fix?: boolean;
       };
 
       const cargoArgs = ["clippy", "--message-format=json"];
       if (all_targets) cargoArgs.push("--all-targets");
       if (fix) cargoArgs.push("--fix", "--allow-dirty", "--allow-staged");
-      if (pedantic) cargoArgs.push("--", "-W", "clippy::pedantic");
+
+      // Strict mode: pedantic + nursery + cargo + deny warnings
+      cargoArgs.push(
+        "--",
+        "-W",
+        "clippy::pedantic",
+        "-W",
+        "clippy::nursery",
+        "-W",
+        "clippy::cargo",
+        "-D",
+        "warnings"
+      );
 
       const result = await runCargoCommand(cargoArgs, path);
       const diagnostics = parseCargoDiagnostics(result.stdout);
 
+      let output = "🔒 Strict Clippy (pedantic + nursery + cargo, warnings denied)\n\n";
+      output += formatDiagnostics(diagnostics);
+
       return {
-        content: [
-          {
-            type: "text",
-            text: formatDiagnostics(diagnostics),
-          },
-        ],
+        content: [{ type: "text", text: output }],
       };
     }
 
@@ -358,13 +617,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case "bacon_doc": {
-      const { no_deps = true, open } = args as {
+      const { no_deps = true, document_private, open } = args as {
         no_deps?: boolean;
+        document_private?: boolean;
         open?: boolean;
       };
 
       const cargoArgs = ["doc", "--message-format=json"];
       if (no_deps) cargoArgs.push("--no-deps");
+      if (document_private) cargoArgs.push("--document-private-items");
       if (open) cargoArgs.push("--open");
 
       const result = await runCargoCommand(cargoArgs, path);
@@ -444,6 +705,186 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             text: `⚠️ Security audit results:\n\n${result.stdout}\n${result.stderr}`,
           },
         ],
+      };
+    }
+
+    case "bacon_deny": {
+      const { check = "all" } = args as {
+        check?: "all" | "advisories" | "bans" | "licenses" | "sources";
+      };
+
+      const cargoArgs = ["deny", "check"];
+      if (check !== "all") {
+        cargoArgs.push(check);
+      }
+
+      const result = await runCargoCommand(cargoArgs, path);
+
+      if (result.exitCode === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `✅ cargo deny (${check}): All checks passed!`,
+            },
+          ],
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `⚠️ cargo deny (${check}) found issues:\n\n${result.stdout}\n${result.stderr}`,
+          },
+        ],
+      };
+    }
+
+    case "bacon_outdated": {
+      const { depth = 1 } = args as { depth?: number };
+
+      const cargoArgs = ["outdated", "--depth", String(depth)];
+
+      const result = await runCargoCommand(cargoArgs, path);
+
+      if (result.stdout.includes("All dependencies are up to date")) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "✅ All dependencies are up to date!",
+            },
+          ],
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `📦 Outdated dependencies:\n\n${result.stdout}${result.stderr ? "\n" + result.stderr : ""}`,
+          },
+        ],
+      };
+    }
+
+    case "bacon_udeps": {
+      const { all_targets = true } = args as { all_targets?: boolean };
+
+      const cargoArgs = ["+nightly", "udeps"];
+      if (all_targets) cargoArgs.push("--all-targets");
+
+      const result = await runCargoCommand(cargoArgs, path);
+
+      if (result.exitCode === 0 && !result.stdout.includes("unused")) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "✅ No unused dependencies found!",
+            },
+          ],
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `📦 Unused dependencies:\n\n${result.stdout}\n${result.stderr}`,
+          },
+        ],
+      };
+    }
+
+    case "bacon_machete": {
+      const { fix } = args as { fix?: boolean };
+
+      const cargoArgs = ["machete"];
+      if (fix) cargoArgs.push("--fix");
+
+      const result = await runCargoCommand(cargoArgs, path);
+
+      if (result.exitCode === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: fix
+                ? "✅ Unused dependencies removed!"
+                : "✅ No unused dependencies found!",
+            },
+          ],
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `📦 Unused dependencies found:\n\n${result.stdout}\n${result.stderr}\n\nRun with fix=true to remove them.`,
+          },
+        ],
+      };
+    }
+
+    case "bacon_quality": {
+      // Run comprehensive quality checks
+      let output = "🔍 **Comprehensive Code Quality Report**\n\n";
+
+      // 1. Clippy with pedantic + nursery
+      output += "## Clippy (pedantic + nursery)\n";
+      const clippyArgs = [
+        "clippy",
+        "--message-format=json",
+        "--all-targets",
+        "--",
+        "-W",
+        "clippy::pedantic",
+        "-W",
+        "clippy::nursery",
+      ];
+      const clippyResult = await runCargoCommand(clippyArgs, path);
+      const clippyDiagnostics = parseCargoDiagnostics(clippyResult.stdout);
+      output += formatDiagnostics(clippyDiagnostics) + "\n";
+
+      // 2. Format check
+      output += "## Formatting\n";
+      const fmtResult = await runCargoCommand(["fmt", "--check"], path);
+      if (fmtResult.exitCode === 0) {
+        output += "✅ All files are properly formatted!\n\n";
+      } else {
+        const unformatted = fmtResult.stdout
+          .split("\n")
+          .filter((l) => l.startsWith("Diff in"));
+        output += `⚠️ ${unformatted.length} file(s) need formatting\n\n`;
+      }
+
+      // 3. Doc check
+      output += "## Documentation\n";
+      const docArgs = ["doc", "--message-format=json", "--no-deps"];
+      const docResult = await runCargoCommand(docArgs, path);
+      const docDiagnostics = parseCargoDiagnostics(docResult.stdout);
+      if (docDiagnostics.length === 0) {
+        output += "✅ Documentation builds without warnings!\n\n";
+      } else {
+        output += formatDiagnostics(docDiagnostics) + "\n";
+      }
+
+      // Summary
+      const totalIssues =
+        clippyDiagnostics.length + docDiagnostics.length + (fmtResult.exitCode !== 0 ? 1 : 0);
+
+      output += "## Summary\n";
+      if (totalIssues === 0) {
+        output += "✅ **Excellent!** No quality issues found.";
+      } else {
+        output += `⚠️ Found ${totalIssues} issue(s) to address.`;
+      }
+
+      return {
+        content: [{ type: "text", text: output }],
       };
     }
 
