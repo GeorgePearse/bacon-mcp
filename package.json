@@ -1,0 +1,34 @@
+{
+  "name": "bacon-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for bacon - background Rust code checker",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "bacon-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "rust",
+    "bacon",
+    "clippy",
+    "cargo"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
